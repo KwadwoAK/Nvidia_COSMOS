@@ -6,6 +6,24 @@ from video_processor import VideoProcessor
 from model_handler import CosmosModelHandler
 from summarizer import VideoSummarizer
 
+if 'logged_in' not in st.session_state:
+    st.session_state.logged_in = False
+if 'username' not in st.session_state:
+    st.session_state.username = None
+
+def get_credentials():
+    """Username -> password. From env (single user) or Streamlit secrets."""
+    try:
+        if "passwords" in st.secrets:
+            return st.secrets["passwords"]
+    except Exception:
+        pass
+    user = os.getenv("LOGIN_USERNAME")
+    pwd = os.getenv("LOGIN_PASSWORD")
+    if user and pwd:
+        return {user: pwd}
+    return {}
+
 # Page configuration
 st.set_page_config(
     page_title="Video Summarizer",
@@ -24,6 +42,35 @@ if 'frames' not in st.session_state:
 # Title and description
 st.title("🎥 Video Summarizer with Cosmos AI")
 st.markdown("Upload a video to get an AI-generated summary using Nvidia's Cosmos-reason2-8b model")
+
+if not st.session_state.logged_in:
+    credentials = get_credentials()
+    if not credentials:
+        st.warning("Set LOGIN_USERNAME and LOGIN_PASSWORD in the environment, or add a 'passwords' dict in Streamlit secrets.")
+        st.stop()
+
+    with st.form("login"):
+        st.subheader("Login")
+        u = st.text_input("Username")
+        p = st.text_input("Password", type="password")
+        submitted = st.form_submit_button("Login")
+        if submitted and u and p and credentials.get(u) == p:
+            st.session_state.logged_in = True
+            st.session_state.username = u
+            st.rerun()
+        elif submitted:
+            st.error("Invalid username or password.")
+    st.stop()
+
+if st.session_state.logged_in:
+    st.sidebar.caption(f"Logged in as **{st.session_state.username}**")
+    if st.sidebar.button("Log out"):
+        st.session_state.logged_in = False
+        st.session_state.username = None
+        st.rerun()
+    st.sidebar.divider()
+st.sidebar.header("Configuration")
+# ... rest of your sidebar (sliders, selectbox)   
 
 # Sidebar for configuration
 st.sidebar.header("Configuration")

@@ -54,6 +54,7 @@ print(torch.cuda.is_available())
 
 ```bash
 streamlit run app.py
+python3 -m streamlit run app.py
 ```
 
 The application will open in your default web browser at `http://localhost:8501`
