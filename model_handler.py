@@ -1,7 +1,9 @@
 import torch
 from PIL import Image
 from typing import List, Dict
-from transformers import AutoModelForCausalLM, AutoProcessor
+from transformers import AutoProcessor, Qwen3VLForConditionalGeneration
+
+
 
 class CosmosModelHandler:
     """Handles interaction with Nvidia's Cosmos-reason2-8b model"""
@@ -22,7 +24,7 @@ class CosmosModelHandler:
         try:
             print("Loading Cosmos model...")
             self.processor = AutoProcessor.from_pretrained(model_name, trust_remote_code=True)
-            self.model = AutoModelForCausalLM.from_pretrained(
+            self.model = Qwen3VLForConditionalGeneration.from_pretrained(
                 model_name,
                 torch_dtype=torch.float16 if self.device == "cuda" else torch.float32,
                 device_map="auto" if self.device == "cuda" else None,
@@ -40,52 +42,93 @@ class CosmosModelHandler:
             print("Make sure you have access to the model and correct model name.")
             raise
     
-    def analyze_single_frame(
-        self,
-        image: Image.Image,
-        prompt: str = "Describe what is happening in this image in detail."
-    ) -> str:
-        """
-        Analyze a single frame with the Cosmos model
+    # def analyze_single_frame(
+    #     self,
+    #     image: Image.Image,
+    #     prompt: str = "Describe what is happening in this image in detail."
+    # ) -> str:
+    #     """
+    #     Analyze a single frame with the Cosmos model
         
-        Args:
-            image: PIL Image to analyze
-            prompt: Text prompt for the model
+    #     Args:
+    #         image: PIL Image to analyze
+    #         prompt: Text prompt for the model
             
-        Returns:
-            Model's description of the frame
-        """
+    #     Returns:
+    #         Model's description of the frame
+    #     """
+    #     try:
+    #         # Prepare inputs
+    #         # Note: Adjust based on actual Cosmos model input format
+    #         inputs = self.processor(
+    #             text=prompt,
+    #             images=image,
+    #             return_tensors="pt"
+    #         ).to(self.device)
+            
+    #         # Generate response
+    #         with torch.no_grad():
+    #             output = self.model.generate(
+    #                 **inputs,
+    #                 max_new_tokens=150,
+    #                 do_sample=False,
+    #                 temperature=0.7,
+    #                 top_p=0.9
+    #             )
+            
+    #         # Decode output
+    #         response = self.processor.decode(output[0], skip_special_tokens=True)
+            
+    #         # Extract only the generated text (remove prompt)
+    #         if prompt in response:
+    #             response = response.split(prompt)[-1].strip()
+            
+    #         return response
+            
+    #     except Exception as e:
+    #         print(f"Error analyzing frame: {e}")
+    #         return f"Error: Could not analyze frame - {str(e)}"
+
+    def analyze_single_frame(self, image: Image.Image, prompt: str = "Describe what is happening in this image in detail.") -> str:
         try:
-            # Prepare inputs
-            # Note: Adjust based on actual Cosmos model input format
+            messages = [
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "image", "image": image},
+                        {"type": "text", "text": prompt}
+                    ]
+                }
+            ]
+
+            # Apply chat template
+            text = self.processor.apply_chat_template(
+                messages, tokenize=False, add_generation_prompt=True
+            )
+
             inputs = self.processor(
-                text=prompt,
-                images=image,
+                text=[text],
+                images=[image],
                 return_tensors="pt"
             ).to(self.device)
-            
-            # Generate response
+
             with torch.no_grad():
                 output = self.model.generate(
                     **inputs,
                     max_new_tokens=150,
-                    do_sample=False,
-                    temperature=0.7,
-                    top_p=0.9
+                    do_sample=False
                 )
-            
-            # Decode output
-            response = self.processor.decode(output[0], skip_special_tokens=True)
-            
-            # Extract only the generated text (remove prompt)
-            if prompt in response:
-                response = response.split(prompt)[-1].strip()
-            
+
+            # Decode only the newly generated tokens
+            generated_ids = output[:, inputs["input_ids"].shape[1]:]
+            response = self.processor.batch_decode(generated_ids, skip_special_tokens=True)[0]
+
             return response
-            
+
         except Exception as e:
             print(f"Error analyzing frame: {e}")
             return f"Error: Could not analyze frame - {str(e)}"
+
     
     def analyze_frames(
         self,

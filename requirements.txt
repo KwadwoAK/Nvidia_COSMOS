@@ -1,7 +1,9 @@
+--extra-index-url https://download.pytorch.org/whl/cu130
 streamlit
 opencv-python
 pillow
 torch
-transformers
+torchvision
+transformers>=4.51.0
 accelerate
 numpy
