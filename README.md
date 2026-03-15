@@ -84,14 +84,58 @@ The application will open in your default web browser at `http://localhost:8501`
 
 ## Project Structure
 
+Tracked files only (see `.gitignore` for excluded paths like `.env`, `.idea/`, `venv/`).
+
 ```
-video-summarizer/
-├── app.py                 # Main Streamlit application
-├── video_processor.py     # Frame extraction and video processing
-├── model_handler.py       # Cosmos model interface
-├── summarizer.py          # Summary generation logic
-├── requirements.txt       # Python dependencies
-└── README.md             # This file
+Nvidia_COSMOS/
+├── app.py                  # Main Streamlit application
+├── video_processor.py      # Frame extraction and video processing
+├── model_handler.py        # Cosmos model interface
+├── summarizer.py           # Summary generation logic
+├── test_setup.py           # Verify setup (imports, GPU, video processor)
+├── db/
+│   ├── connection.py       # PostgreSQL connection (DATABASE_URL)
+│   ├── init.py             # Create DB + pgvector extension + video_summaries table
+│   ├── schema.sql          # Reference SQL schema
+│   ├── video_store.py      # Insert video summaries with embeddings
+│   └── search_video.py     # Similarity search over summaries
+├── embeddings/
+│   ├── embedder.py         # Text → 384-dim vector (sentence-transformers)
+│   └── init.py
+├── requirements.txt
+├── README.md
+├── QUICKSTART.md
+```
+
+## Database schema
+
+The app can store video summaries in PostgreSQL with the pgvector extension for similarity search. Set `DATABASE_URL` (e.g. `postgresql://user:pass@localhost:5432/cosmos_videos`) and run once:
+
+```bash
+python -m db.init
+```
+
+Schema (from `db/schema.sql`):
+
+- **Extension:** `CREATE EXTENSION IF NOT EXISTS vector;`
+- **Table:** `video_summaries`
+
+| Column         | Type           | Description                          |
+|----------------|----------------|--------------------------------------|
+| `id`           | BIGSERIAL      | Primary key                          |
+| `created_at`   | TIMESTAMPTZ    | Default NOW()                        |
+| `filename`     | TEXT           | Original video filename (optional)   |
+| `duration_sec` | NUMERIC(10,2)  | Video duration in seconds (optional) |
+| `summary_style`| TEXT           | e.g. "detailed", "concise"           |
+| `summary_text` | TEXT NOT NULL  | Full summary text                    |
+| `embedding`    | vector(384)    | Embedding for similarity search (all-MiniLM-L6-v2) |
+
+Optional index for faster search once you have many rows:
+
+```sql
+CREATE INDEX ON video_summaries
+USING ivfflat (embedding vector_cosine_ops)
+WITH (lists = 100);
 ```
 
 ## Configuration
