@@ -17,7 +17,12 @@ A Streamlit application that generates AI-powered summaries of video content usi
 
 ## Installation
 
-### 1. Clone or download this repository
+### 1. Clone the repository
+
+```bash
+git clone <repo-url>
+cd Nvidia_COSMOS
+```
 
 ### 2. Create a virtual environment (recommended)
 
@@ -32,7 +37,43 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### 4. Model Access
+### 4. Create required secret files (not included in repo)
+
+These files are excluded from the repository via `.gitignore` and **must be created manually** after cloning.
+
+#### `.env`
+
+Create a `.env` file in the project root:
+
+```
+SUPABASE_DB_URL=postgresql://<user>:<password>@<host>:5432/<dbname>?sslmode=require
+LOGIN_USERNAME=your_username
+LOGIN_PASSWORD=your_password
+```
+
+- `SUPABASE_DB_URL` — your Supabase (or any PostgreSQL) connection string
+- `LOGIN_USERNAME` / `LOGIN_PASSWORD` — credentials for the app login screen
+
+#### `.streamlit/secrets.toml`
+
+Create the `.streamlit/` directory and a `secrets.toml` file inside it:
+
+```bash
+mkdir .streamlit
+```
+
+Then create `.streamlit/secrets.toml` with the following content:
+
+```toml
+[passwords]
+your_username = "your_password"
+```
+
+Add one line per user you want to allow. The username and password here must match what you set in `.env` (or you can use only one of the two approaches — both work).
+
+> **Note:** If VSCode shows these files greyed out, that is expected — they are gitignored to keep secrets out of version control. The files still work normally.
+
+### 5. Model Access
 
 Make sure you have access to Nvidia's Cosmos-reason2-8b model. You may need to:
 - Accept the model's terms on HuggingFace
@@ -177,6 +218,16 @@ Customize the prompts sent to the Cosmos model in `model_handler.py`:
 ## Troubleshooting
 
 ### Common Issues
+
+**Login fails / "no credentials found"**
+- Ensure `.env` exists in the project root with `LOGIN_USERNAME` and `LOGIN_PASSWORD` set
+- Or ensure `.streamlit/secrets.toml` exists with a `[passwords]` section
+- Verify you are running `streamlit run app.py` from the project root — Streamlit looks for `.streamlit/secrets.toml` relative to the working directory
+- On Windows, check the file was saved correctly: `Test-Path ".streamlit\secrets.toml"` should return `True`
+
+**"Missing SUPABASE_DB_URL"**
+- Ensure `.env` exists and contains `SUPABASE_DB_URL=...`
+- The `python-dotenv` package must be installed (`pip install -r requirements.txt`)
 
 **"Could not open video file"**
 - Ensure the video file is not corrupted

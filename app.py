@@ -2,6 +2,8 @@ import streamlit as st
 import tempfile
 import os
 from pathlib import Path
+from dotenv import load_dotenv
+load_dotenv()
 import cv2
 from video_processor import VideoProcessor
 from model_handler import CosmosModelHandler
