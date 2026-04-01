@@ -33,9 +33,17 @@ Thumbs.db
 
 # Local diagrams (do not push)
 FLOW_DIAGRAM.html
+
 VECTOR_SEARCH_SETUP.md
 
 google-embedder/
 
 testing/
+
+tokens.txt
+
+dependencies.txt
+
+
+env.sh
 
