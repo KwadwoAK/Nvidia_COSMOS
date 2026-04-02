@@ -10,13 +10,6 @@ sudo apt update -y
 echo "🐍 Installing pip + venv..."
 sudo apt install -y python3-pip python3-venv git
 
-# --- Clone repo (if not already cloned) ---
-if [ ! -d "Nvidia_COSMOS" ]; then
-    echo "📥 Cloning repo..."
-    git clone https://github.com/KwadwoAK/Nvidia_COSMOS.git
-fi
-
-cd Nvidia_COSMOS || exit
 
 # --- Create virtual environment ---
 echo "🌱 Creating virtual environment..."
