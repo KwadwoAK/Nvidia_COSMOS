@@ -1,31 +1,36 @@
+import os
+
 import torch
 from PIL import Image
 from typing import List, Dict
 from transformers import AutoProcessor, Qwen3VLForConditionalGeneration
 
+# Local default: smaller 2B checkpoint (override with env COSMOS_MODEL)
+DEFAULT_COSMOS_MODEL = "nvidia/Cosmos-Reason2-2B"
 
 
 class CosmosModelHandler:
-    """Handles interaction with Nvidia's Cosmos-reason2-8b model"""
-    
-    def __init__(self, model_name: str = "nvidia/Cosmos-reason2-8b"):
+    """Vision-language captions per frame using NVIDIA Cosmos Reason2 (default: 2B)."""
+
+    def __init__(self, model_name: str | None = None):
         """
-        Initialize the Cosmos model
-        
+        Initialize the Cosmos model.
+
         Args:
-            model_name: HuggingFace model identifier or local path
+            model_name: HuggingFace model id or local path. Defaults to COSMOS_MODEL env or Cosmos-Reason2-2B.
         """
-        self.model_name = model_name
+        _env_model = (os.getenv("COSMOS_MODEL") or "").strip()
+        self.model_name = (model_name or _env_model or DEFAULT_COSMOS_MODEL).strip() or DEFAULT_COSMOS_MODEL
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        print(f"Using device: {self.device}")
+        print(f"Using device: {self.device}; model: {self.model_name}")
         
         # Load model and processor
         # Note: Adjust these based on actual Cosmos model requirements
         try:
             print("Loading Cosmos model...")
-            self.processor = AutoProcessor.from_pretrained(model_name, trust_remote_code=True)
+            self.processor = AutoProcessor.from_pretrained(self.model_name, trust_remote_code=True)
             self.model = Qwen3VLForConditionalGeneration.from_pretrained(
-                model_name,
+                self.model_name,
                 torch_dtype=torch.float16 if self.device == "cuda" else torch.float32,
                 device_map="auto" if self.device == "cuda" else None,
                 trust_remote_code=True,

@@ -6,6 +6,8 @@ Search is in db.search_video. Caller is responsible for computing embeddings
 # write 
 from __future__ import annotations
 
+from typing import Any
+
 from db.connection import get_connection
 
 
