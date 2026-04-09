@@ -46,7 +46,7 @@ def insert_summary(
             return None
         _ensure_vector_registered(conn)
 
-        from pgvector.psycopg2 import Vector
+        from pgvector import Vector
 
         with conn.cursor() as cur:
             cur.execute(

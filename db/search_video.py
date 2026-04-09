@@ -43,7 +43,7 @@ def search_similar(
             return []
         _ensure_vector_registered(conn)
 
-        from pgvector.psycopg2 import Vector
+        from pgvector import Vector
 
         with conn.cursor() as cur:
             cur.execute(
