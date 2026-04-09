@@ -76,10 +76,6 @@ if st.session_state.logged_in:
         st.rerun()
     st.sidebar.divider()
 st.sidebar.header("Configuration")
-# ... rest of your sidebar (sliders, selectbox)   
-
-# Sidebar for configuration
-st.sidebar.header("Configuration")
 frame_interval = st.sidebar.slider(
     "Frame Sampling Interval (seconds)",
     min_value=1,
@@ -100,6 +96,15 @@ summary_style = st.sidebar.selectbox(
     "Summary Style",
     ["Detailed", "Concise", "Bullet Points"],
     help="Choose how you want the summary formatted"
+)
+
+st.sidebar.divider()
+st.sidebar.subheader("Search similar videos")
+search_query = st.sidebar.text_input(
+    "Search by keywords",
+    placeholder="e.g. pedestrian crossing",
+    help="Semantic search over saved summaries (sidebar). Results show below.",
+    key="sidebar_search_query",
 )
 
 # Main content area
@@ -218,31 +223,27 @@ with col2:
     else:
         st.info("Upload a video and click 'Generate Summary' to see results here.")
 
-    st.divider()
-    st.header("🔎 Search Similar Videos")
-    query = st.text_input(
-        "Search by keywords",
-        placeholder="e.g. 'pedestrian crossing behavior', 'car accident at intersection', 'person loitering near entrance'",
-    )
+st.divider()
+st.subheader("Search results")
+if search_query and search_query.strip():
+    with st.spinner("Embedding query and searching..."):
+        query_embedding = embed_text(search_query.strip())
+        results = search_similar(query_embedding, limit=10)
 
-    if query and query.strip():
-        with st.spinner("Embedding query and searching..."):
-            query_embedding = embed_text(query.strip())
-            results = search_similar(query_embedding, limit=10)
-
-        if results:
-            st.markdown("### Results")
-            for r in results:
-                filename = r.get("filename") or "Unknown file"
-                summary_text = r.get("summary_text") or ""
-                distance = r.get("distance")
-                st.markdown(f"**{filename}**")
-                if distance is not None:
-                    st.caption(f"Distance: {distance:.4f}")
-                st.write(summary_text)
-                st.divider()
-        else:
-            st.info("No similar summaries found yet. Generate a summary first.")
+    if results:
+        for r in results:
+            filename = r.get("filename") or "Unknown file"
+            summary_text = r.get("summary_text") or ""
+            distance = r.get("distance")
+            st.markdown(f"**{filename}**")
+            if distance is not None:
+                st.caption(f"Distance: {distance:.4f}")
+            st.write(summary_text)
+            st.divider()
+    else:
+        st.info("No similar summaries found yet. Generate a summary first.")
+else:
+    st.caption("Use the search box in the sidebar to find similar saved summaries.")
 
 # Footer
 st.markdown("---")
