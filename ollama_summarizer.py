@@ -1,8 +1,14 @@
 """
 Turn Cosmos per-frame captions into a structured summary via a local Ollama model.
 
-Uses the same markdown template as the heuristic path (summary_templates).
-Env: OLLAMA_HOST (optional), OLLAMA_MODEL (default llama3.2), COSMOS_MODEL_LABEL (display only).
+Uses prompts from ``summary_templates`` (including the long municipal / incident-record style).
+
+Environment variables:
+  OLLAMA_HOST — optional API base
+  OLLAMA_MODEL — model name (default llama3.2)
+  OLLAMA_NUM_PREDICT — max new tokens (optional)
+  OLLAMA_NUM_PREDICT_MUNICIPAL — override for ``municipal_report`` style (default 8192)
+  COSMOS_MODEL_LABEL — label embedded in prompts
 """
 from __future__ import annotations
 
@@ -57,10 +63,23 @@ def summarize_frames_with_ollama(
 
     user_prompt = ollama_user_prompt(transcript, style, vision_model=vision)
 
-    response = client.chat(
-        model=resolved_model,
-        messages=[{"role": "user", "content": user_prompt}],
-    )
+    sk = (style or "").lower().strip().replace(" ", "_")
+    if os.getenv("OLLAMA_NUM_PREDICT"):
+        num_predict = int(os.getenv("OLLAMA_NUM_PREDICT", "4096"))
+    elif sk == "municipal_report":
+        num_predict = int(os.getenv("OLLAMA_NUM_PREDICT_MUNICIPAL", "8192"))
+    else:
+        num_predict = int(os.getenv("OLLAMA_NUM_PREDICT_DEFAULT", "4096"))
+    options = {"num_predict": num_predict}
+
+    kwargs: dict = {
+        "model": resolved_model,
+        "messages": [{"role": "user", "content": user_prompt}],
+    }
+    if options:
+        kwargs["options"] = options
+
+    response = client.chat(**kwargs)
     message = response.get("message") or {}
     body = (message.get("content") or "").strip()
     if not body:

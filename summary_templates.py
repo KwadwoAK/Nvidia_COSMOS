@@ -19,6 +19,7 @@ ANALYSIS_STYLES: list[tuple[str, str]] = [
     ("Bullet points", "bullet_points"),
     ("Concise", "concise"),
     ("Formal", "formal"),
+    ("Municipal report (detailed)", "municipal_report"),
 ]
 
 
@@ -41,20 +42,67 @@ def metadata_line(
     )
 
 
+def _ollama_municipal_report_prompt(transcript: str, vision_model: str) -> str:
+    """
+    Long-form English narrative suitable for municipal records / incident-style documentation.
+    """
+    return f"""You are drafting an official **field observation record** for municipal or public-safety use, based solely on timestamped visual descriptions from an automated vision system ({vision_model}).
+
+Write in **English**, **past tense**, **third person** ("The recording showed…", "Personnel observed…"). Be exhaustive: this document may be filed, reviewed, or shared with city staff. Do **not** speculate beyond the notes. If something is unclear, state "Not clearly discernible from the provided frame notes."
+
+**RAW FRAME NOTES (only source of truth):**
+{transcript}
+
+---
+
+Produce a **single markdown document** with **exactly** these section headings (use `##` for each):
+
+## Record identification
+- State that the record is derived from sampled video frames analyzed by {vision_model}.
+- Note approximate coverage using the first and last timestamps in the notes (do not invent calendar dates).
+
+## Executive summary
+- 4–8 dense sentences: what the footage broadly depicts, primary setting, main actors or objects, and the overall sequence of activity.
+
+## Detailed chronological account
+- For **each** distinct time segment in the notes, provide a numbered or bulleted subsection with **timestamp** (HH:MM:SS or MM:SS) and a **paragraph** of factual description.
+- Merge only when two adjacent notes describe the same moment; otherwise keep temporal resolution.
+
+## Persons, vehicles, objects, and environment
+- Sub-bullets listing what was described: people, clothing or posture if noted, vehicles, fixed objects, weather/lighting if mentioned, structures, signage if visible in text.
+
+## Actions and sequence of events
+- Narrative paragraph(s) describing what happened in order, suitable for a supervisor or clerk.
+
+## Uncertainties, occlusions, and limitations
+- Explicitly list what the frame notes do **not** establish (identity, intent, audio, off-camera events, exact counts if ambiguous).
+
+## Administrative closing
+- One short paragraph: suitable for filing with municipal records; state that content is limited to visual descriptions from the vision system and not eyewitness testimony.
+
+Rules:
+- Do not invent names, license plates, addresses, or legal conclusions.
+- Quote or paraphrase the frame notes closely; prefer precision over creativity.
+- Minimum total length: aim for thorough coverage (typically several hundred words unless the notes are trivial).
+"""
+
+
 def ollama_user_prompt(
     transcript: str,
     style: str,
     vision_model: str = DEFAULT_VISION_MODEL_LABEL,
 ) -> str:
     """
-    Instructions for the LLM: same three sections for every analysis type; tone/length changes by style.
+    Build the user message for Ollama. Municipal report uses a dedicated long-form English template.
     """
     style_key = (style or "formal").lower().strip().replace(" ", "_")
-    # Normalize legacy values
     if style_key == "bulletpoints":
         style_key = "bullet_points"
     if style_key in ("detailed", "deep"):
         style_key = "formal"
+
+    if style_key == "municipal_report":
+        return _ollama_municipal_report_prompt(transcript, vision_model)
 
     style_rules = {
         "bullet_points": (
@@ -107,6 +155,57 @@ Rules:
 """
 
 
+def _format_heuristic_municipal_report(
+    frame_descriptions: List[Dict[str, str]],
+    timestamps: List[float],
+    format_timestamp,
+    vision_model: str,
+    style_key: str,
+) -> str:
+    """English municipal-style layout without LLM (less detailed than Ollama municipal prompt)."""
+    lines: List[str] = [metadata_line(style_key, "heuristic", vision_model), ""]
+    first_ts = format_timestamp(timestamps[0]) if timestamps else "unknown"
+    last_ts = format_timestamp(timestamps[-1]) if timestamps else "unknown"
+    first = (frame_descriptions[0].get("description") or "").strip()
+    last = (frame_descriptions[-1].get("description") or "").strip()
+
+    lines.append("## Record identification")
+    lines.append(
+        f"This record was produced from sampled video frames analyzed by **{vision_model}**. "
+        f"Sampled interval on the timeline spans approximately **{first_ts}** through **{last_ts}**."
+    )
+    lines.append("")
+    lines.append("## Executive summary")
+    lines.append(
+        f"The footage documents the following initial observation: {first} "
+        f"The sequence concludes with: {last} "
+        "This heuristic summary is a condensed placeholder; use the **Ollama** engine with **Municipal report** for a full narrative."
+    )
+    lines.append("")
+    lines.append("## Detailed chronological account")
+    for i, fd in enumerate(frame_descriptions):
+        ts = format_timestamp(timestamps[i]) if i < len(timestamps) else "?"
+        desc = (fd.get("description") or "").strip()
+        lines.append(f"1. **{ts}** — {desc}")
+    lines.append("")
+    lines.append("## Persons, vehicles, objects, and environment")
+    topics = extract_keywords_from_frames(frame_descriptions)
+    if topics:
+        for t in topics:
+            lines.append(f"- Term recurring in captions: **{t}**")
+    else:
+        lines.append("- No additional keyword clusters extracted from captions.")
+    lines.append("")
+    lines.append("## Uncertainties, occlusions, and limitations")
+    lines.append(
+        "- This document was generated without a large language model; phrasing follows raw frame text only. "
+        "- Identity, intent, and off-camera events are not established."
+    )
+    lines.append("")
+    lines.append(f"_Template `{TEMPLATE_ID}` — heuristic municipal layout._")
+    return "\n".join(lines)
+
+
 def format_heuristic_summary(
     frame_descriptions: List[Dict[str, str]],
     timestamps: List[float],
@@ -114,7 +213,7 @@ def format_heuristic_summary(
     format_timestamp,
     vision_model: str = DEFAULT_VISION_MODEL_LABEL,
 ) -> str:
-    """Deterministic summary that mirrors the Ollama section layout."""
+    """Deterministic summary; municipal report uses an English incident-record style (heuristic = shallow vs Ollama)."""
     if not frame_descriptions:
         return metadata_line(style, "heuristic", vision_model) + "\n\n_No content to summarize._"
 
@@ -123,6 +222,11 @@ def format_heuristic_summary(
         style_key = "formal"
     if style_key == "bulletpoints":
         style_key = "bullet_points"
+
+    if style_key == "municipal_report":
+        return _format_heuristic_municipal_report(
+            frame_descriptions, timestamps, format_timestamp, vision_model, style_key
+        )
 
     lines: List[str] = [metadata_line(style_key, "heuristic", vision_model), ""]
 

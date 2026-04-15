@@ -9,7 +9,7 @@ _APP_DIR = Path(__file__).resolve().parent
 # Load .env next to this file (works even if Streamlit's cwd is elsewhere)
 load_dotenv(_APP_DIR / ".env")
 load_dotenv()
-# Reduces tokenizer/process issues during Streamlit reloads.
+# Reduces fork/atexit issues when Streamlit reloads + transformers/sklearn import chain (esp. Python 3.13).
 os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
 import cv2
 from video_processor import VideoProcessor
@@ -157,27 +157,42 @@ max_frames = st.sidebar.slider(
 summary_style_label = st.sidebar.selectbox(
     "Analysis type",
     [label for label, _ in ANALYSIS_STYLES],
-    help="Bullet points: scannable lists. Concise: short. Formal: neutral professional tone (memo/report).",
+    help=(
+        "Bullet points: scannable lists. Concise: short. Formal: professional memo tone. "
+        "Municipal report: long English incident-style record (best with Ollama)."
+    ),
 )
 style_key = style_key_from_label(summary_style_label)
 
 summary_engine = st.sidebar.selectbox(
     "Summary engine",
     ["Heuristic (no LLM)", "Ollama (local LLM)"],
-    help="Heuristic stitches frame captions. Ollama runs on your machine (ollama serve).",
+    help="Heuristic stitches captions with rules. Ollama uses your local LLM (see instructions below).",
 )
 ollama_model = st.sidebar.text_input(
     "Ollama model",
     value=os.getenv("OLLAMA_MODEL", "llama3.2"),
     disabled=summary_engine != "Ollama (local LLM)",
-    help="Pull first: ollama pull <model>",
+    help="Run: ollama pull <name>",
 )
+if summary_engine == "Ollama (local LLM)":
+    with st.sidebar.expander("How to run Ollama locally"):
+        st.markdown(
+            """
+1. Install [Ollama](https://ollama.com/download) for Windows.  
+2. Open a terminal and run: `ollama serve` (or use the tray app — it listens on port **11434**).  
+3. Pull a model: `ollama pull llama3.2` (or the name you typed above).  
+4. Restart this app if you change models.  
+
+**Municipal report** uses long outputs; ensure your model has enough context (raise `OLLAMA_NUM_PREDICT_MUNICIPAL` in `.env` if output is cut off).
+            """
+        )
 
 _mock_cosmos = os.getenv("MOCK_COSMOS", "").lower() in ("1", "true", "yes")
 if _mock_cosmos:
     st.sidebar.warning(
-        "**MOCK_COSMOS** is on — no Hugging Face / no Cosmos weights. "
-        "Captions are fake; use this only to test UI + summaries."
+        "**MOCK_COSMOS** is enabled — Cosmos weights are not loaded. "
+        "Captions are placeholders; use only for UI and pipeline tests."
     )
 
 st.sidebar.divider()
@@ -244,6 +259,7 @@ with col1:
                         st.success(f"✓ Mock captions for {len(frame_descriptions)} frames (not real vision)")
                     else:
                         st.info("Step 2/3: Analyzing frames with Cosmos AI...")
+                        # Lazy import: avoids loading transformers/sklearn at app startup (fixes Streamlit+Py3.13 issues).
                         from model_handler import CosmosModelHandler
 
                         model_handler = CosmosModelHandler()
