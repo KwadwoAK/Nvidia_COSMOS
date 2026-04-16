@@ -44,52 +44,6 @@ class CosmosModelHandler:
             print("Make sure you have access to the model and correct model name.")
             raise
     
-    # def analyze_single_frame(
-    #     self,
-    #     image: Image.Image,
-    #     prompt: str = "Describe what is happening in this image in detail."
-    # ) -> str:
-    #     """
-    #     Analyze a single frame with the Cosmos model
-        
-    #     Args:
-    #         image: PIL Image to analyze
-    #         prompt: Text prompt for the model
-            
-    #     Returns:
-    #         Model's description of the frame
-    #     """
-    #     try:
-    #         # Prepare inputs
-    #         # Note: Adjust based on actual Cosmos model input format
-    #         inputs = self.processor(
-    #             text=prompt,
-    #             images=image,
-    #             return_tensors="pt"
-    #         ).to(self.device)
-            
-    #         # Generate response
-    #         with torch.no_grad():
-    #             output = self.model.generate(
-    #                 **inputs,
-    #                 max_new_tokens=150,
-    #                 do_sample=False,
-    #                 temperature=0.7,
-    #                 top_p=0.9
-    #             )
-            
-    #         # Decode output
-    #         response = self.processor.decode(output[0], skip_special_tokens=True)
-            
-    #         # Extract only the generated text (remove prompt)
-    #         if prompt in response:
-    #             response = response.split(prompt)[-1].strip()
-            
-    #         return response
-            
-    #     except Exception as e:
-    #         print(f"Error analyzing frame: {e}")
-    #         return f"Error: Could not analyze frame - {str(e)}"
 
     def analyze_single_frame(self, image: Image.Image, prompt: str = "Describe what is happening in this image in detail.") -> str:
         try:
