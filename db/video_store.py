@@ -54,7 +54,7 @@ def insert_summary(
         summary_style: e.g. "detailed", "concise", "bullet points".
         summary_text: Full summary text (required).
         embedding: List of 384 floats (must match table vector(384)).
-        summary_engine: e.g. "heuristic" (optional; inserted if column exists).
+        summary_engine: e.g. "ollama" (optional; inserted if column exists).
         vision_model: Label of vision model used (optional; inserted if column exists).
         template_id: Summary template version (optional; inserted if column exists).
         search_text: Text used for semantic search (optional; inserted if column exists).

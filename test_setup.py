@@ -73,27 +73,16 @@ def test_model_handler():
         print(f"✗ ModelHandler error: {e}")
         return False
 
-def test_summarizer():
-    """Test the summarizer module"""
-    print("\nTesting Summarizer...")
+def test_ollama_summarizer_module():
+    """Ensure Ollama summarizer module imports (no network call)."""
+    print("\nTesting Ollama summarizer module...")
     try:
-        from summarys.summarizer import VideoSummarizer
-        summarizer = VideoSummarizer()
-        print("✓ VideoSummarizer initialized successfully")
-        
-        # Test with dummy data
-        dummy_descriptions = [
-            {"frame_index": 0, "description": "A person walking in a park."},
-            {"frame_index": 1, "description": "The person sits on a bench."},
-        ]
-        dummy_timestamps = [0.0, 5.0]
-        
-        summary = summarizer.generate_summary(dummy_descriptions, dummy_timestamps, "concise")
-        print("✓ Summary generation works")
-        print(f"  Sample output length: {len(summary)} characters")
+        from summarys.ollama_summarizer import summarize_frames_with_ollama  # noqa: F401
+        assert callable(summarize_frames_with_ollama)
+        print("✓ summarys.ollama_summarizer import OK")
         return True
     except Exception as e:
-        print(f"✗ Summarizer error: {e}")
+        print(f"✗ Ollama summarizer import error: {e}")
         return False
 
 def test_create_dummy_image():
@@ -120,7 +109,7 @@ def main():
         "GPU": test_gpu(),
         "VideoProcessor": test_video_processor(),
         "ModelHandler": test_model_handler(),
-        "Summarizer": test_summarizer(),
+        "Ollama summarizer": test_ollama_summarizer_module(),
         "Image Handling": test_create_dummy_image(),
     }
     

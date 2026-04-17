@@ -1,2 +1,2 @@
-"""Summary generation package (templates + heuristic summarizer)."""
+"""Summary generation package (Ollama + shared templates)."""
 
