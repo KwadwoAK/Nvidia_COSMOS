@@ -20,7 +20,7 @@ def _ensure_vector_registered(conn: Any) -> None:
 
         register_vector(conn)
     except ImportError:
-        pass  # pgvector not installed; raw SQL may still work with cast
+        pass  
 
 
 def build_search_text(
