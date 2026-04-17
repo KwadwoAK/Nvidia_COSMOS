@@ -1,32 +1,24 @@
 import streamlit as st
 import tempfile
+import cv2
 import os
 from pathlib import Path
 
-from dotenv import load_dotenv
-
-_APP_DIR = Path(__file__).resolve().parent
-# Load .env next to this file (works even if Streamlit's cwd is elsewhere)
-load_dotenv(_APP_DIR / ".env")
-load_dotenv()
 # Reduces fork/atexit issues when Streamlit reloads + transformers/sklearn import chain (esp. Python 3.13).
 os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
-import cv2
 from video_processor import VideoProcessor
-from mock_vision import mock_analyze_frames
 from summarizer import VideoSummarizer
 from ollama_summarizer import summarize_frames_with_ollama
 from summary_store import append_local_summary
 from summary_templates import ANALYSIS_STYLES, DEFAULT_VISION_MODEL_LABEL, style_key_from_label
-from vision_search import (
+from db.search_video import (
     build_search_text,
-    search_local_summaries_semantic,
     suggest_search_terms,
+    search_similar,
 )
 from video_storage import persist_uploaded_video
 from embeddings.embedder import embed_text
 from db.video_store import insert_summary
-from db.search_video import search_similar
 
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
@@ -154,46 +146,16 @@ max_frames = st.sidebar.slider(
     help="Limit total frames to avoid overwhelming the model"
 )
 
-summary_style_label = st.sidebar.selectbox(
-    "Analysis type",
-    [label for label, _ in ANALYSIS_STYLES],
-    help=(
-        "Bullet points: scannable lists. Concise: short. Formal: professional memo tone. "
-        "Municipal report: long English incident-style record (best with Ollama)."
-    ),
-)
-style_key = style_key_from_label(summary_style_label)
+# Only Municipal report with Ollama is supported in this branch
+summary_style_label = "Municipal report (detailed)"
+style_key = "municipal_report"
+summary_engine = "Ollama (local LLM)"
+ollama_model = os.getenv("OLLAMA_MODEL", "llama3.2")
 
-summary_engine = st.sidebar.selectbox(
-    "Summary engine",
-    ["Heuristic (no LLM)", "Ollama (local LLM)"],
-    help="Heuristic stitches captions with rules. Ollama uses your local LLM (see instructions below).",
-)
-ollama_model = st.sidebar.text_input(
-    "Ollama model",
-    value=os.getenv("OLLAMA_MODEL", "llama3.2"),
-    disabled=summary_engine != "Ollama (local LLM)",
-    help="Run: ollama pull <name>",
-)
-if summary_engine == "Ollama (local LLM)":
-    with st.sidebar.expander("How to run Ollama locally"):
-        st.markdown(
-            """
-1. Install [Ollama](https://ollama.com/download) for Windows.  
-2. Open a terminal and run: `ollama serve` (or use the tray app — it listens on port **11434**).  
-3. Pull a model: `ollama pull llama3.2` (or the name you typed above).  
-4. Restart this app if you change models.  
+st.sidebar.info(f"✅ **Ollama Summarizer Active**\n\nModel: `{ollama_model}`\nStyle: `{summary_style_label}`")
 
-**Municipal report** uses long outputs; ensure your model has enough context (raise `OLLAMA_NUM_PREDICT_MUNICIPAL` in `.env` if output is cut off).
-            """
-        )
-
-_mock_cosmos = os.getenv("MOCK_COSMOS", "").lower() in ("1", "true", "yes")
-if _mock_cosmos:
-    st.sidebar.warning(
-        "**MOCK_COSMOS** is enabled — Cosmos weights are not loaded. "
-        "Captions are placeholders; use only for UI and pipeline tests."
-    )
+# MOCK_COSMOS is disabled for this production branch
+_mock_cosmos = False
 
 st.sidebar.divider()
 st.sidebar.subheader("Search similar videos")
@@ -252,40 +214,25 @@ with col1:
                     st.session_state.frames = frames
                     st.success(f"✓ Extracted {len(frames)} frames")
                     
-                    # Step 2: Analyze with Cosmos model (or mock if HF unreachable)
-                    if _mock_cosmos:
-                        st.info("Step 2/3: Mock vision (MOCK_COSMOS=1) — skipping Cosmos download…")
-                        frame_descriptions = mock_analyze_frames(frames, timestamps)
-                        st.success(f"✓ Mock captions for {len(frame_descriptions)} frames (not real vision)")
-                    else:
-                        st.info("Step 2/3: Analyzing frames with Cosmos AI...")
-                        # Lazy import: avoids loading transformers/sklearn at app startup (fixes Streamlit+Py3.13 issues).
-                        from model_handler import CosmosModelHandler
+                    st.info("Step 2/3: Analyzing frames with Cosmos AI...")
+                    # Lazy import: avoids loading transformers/sklearn at app startup (fixes Streamlit+Py3.13 issues).
+                    from model_handler import CosmosModelHandler
 
-                        model_handler = CosmosModelHandler()
-                        frame_descriptions = model_handler.analyze_frames(frames)
-                        st.success(f"✓ Analyzed {len(frame_descriptions)} frames")
+                    model_handler = CosmosModelHandler()
+                    frame_descriptions = model_handler.analyze_frames(frames)
+                    st.success(f"✓ Analyzed {len(frame_descriptions)} frames")
                     
-                    # Step 3: Generate summary (heuristic or Ollama)
-                    st.info("Step 3/3: Generating video summary...")
-                    if summary_engine == "Ollama (local LLM)":
-                        summary = summarize_frames_with_ollama(
-                            frame_descriptions,
-                            timestamps,
-                            style=style_key,
-                            model=ollama_model.strip() or None,
-                            host=os.getenv("OLLAMA_HOST") or None,
-                            vision_model=_cosmos_label,
-                        )
-                        _engine = "ollama"
-                    else:
-                        summarizer = VideoSummarizer(vision_model=_cosmos_label)
-                        summary = summarizer.generate_summary(
-                            frame_descriptions,
-                            timestamps,
-                            style=style_key,
-                        )
-                        _engine = "heuristic"
+                    # Step 3: Generate summary with Ollama
+                    st.info("Step 3/3: Generating video summary with Ollama...")
+                    summary = summarize_frames_with_ollama(
+                        frame_descriptions,
+                        timestamps,
+                        style=style_key,
+                        model=ollama_model.strip() or None,
+                        host=os.getenv("OLLAMA_HOST") or None,
+                        vision_model=_cosmos_label,
+                    )
+                    _engine = "ollama"
                     st.session_state.summary = summary
                     _search_text = build_search_text(summary, frame_descriptions)
                     st.session_state.search_hints = suggest_search_terms(frame_descriptions)
@@ -367,7 +314,7 @@ st.divider()
 st.subheader("Search results")
 if search_query and search_query.strip():
     st.caption(
-        "Uses the same text embeddings as summaries, indexed over **summary + every frame caption**."
+        "Uses database-backed embeddings over **summary + every frame caption**."
     )
     if st.session_state.search_hints:
         with st.expander("Suggested terms from last run"):
@@ -375,17 +322,11 @@ if search_query and search_query.strip():
     q = search_query.strip()
     with st.spinner("Searching..."):
         results: list = []
-        if os.getenv("SUPABASE_DB_URL"):
-            try:
-                query_embedding = embed_text(q)
-                results = search_similar(query_embedding, limit=10)
-            except Exception as e:
-                st.warning(f"Database search failed: {e}")
-        else:
-            try:
-                results = search_local_summaries_semantic(q, limit=10)
-            except Exception as e:
-                st.warning(f"Local search failed: {e}")
+        try:
+            query_embedding = embed_text(q)
+            results = search_similar(query_embedding, limit=10)
+        except Exception as e:
+            st.warning(f"Database search failed: {e}")
 
     if results:
         for r in results:
@@ -402,11 +343,13 @@ if search_query and search_query.strip():
             st.divider()
     else:
         st.info(
-            "No matches found yet. Generate a summary first, or try a different phrase "
-            "(search uses captions from Cosmos or mock vision)."
+            "No matches found yet. Generate a summary first, or try a different phrase."
         )
 else:
-    st.caption("Use the search box in the sidebar to find similar saved summaries.")
+    if os.getenv("SUPABASE_DB_URL"):
+        st.caption("Use the search box in the sidebar to find similar saved summaries.")
+    else:
+        st.caption("Set `SUPABASE_DB_URL` in `.env` to enable database search.")
 
 # Footer
 st.markdown("---")
