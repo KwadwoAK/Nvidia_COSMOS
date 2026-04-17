@@ -2,7 +2,7 @@ import os
 
 # Optional: load .env so SUPABASE_DB_URL is set (pip install python-dotenv)
 try:
-    from dotenv import load_dotenv  # type: ignore[import-untyped]
+    from dotenv import load_dotenv  
     load_dotenv()
 except ImportError:
     pass
@@ -16,6 +16,6 @@ def get_connection():
         raise RuntimeError(
             "Missing SUPABASE_DB_URL. Set it in your environment or .env file."
         )
-    import psycopg2  # type: ignore[import-untyped]
+    import psycopg2  
 
     return psycopg2.connect(SUPABASE_DB_URL)
