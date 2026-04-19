@@ -43,21 +43,45 @@ def metadata_line(
 
 
 def _ollama_municipal_report_prompt(transcript: str, vision_model: str) -> str:
-    return f"""You are drafting an official field observation record from timestamped visual descriptions produced by {vision_model}.
+    """Long-form English narrative suitable for municipal records / incident-style documentation."""
+    return f"""You are drafting an official **field observation record** for municipal or public-safety use, based solely on timestamped visual descriptions from an automated vision system ({vision_model}).
 
-Use only facts supported by the notes below.
+Write in **English**, **past tense**, **third person** ("The recording showed…", "Personnel observed…"). Be exhaustive: this document may be filed, reviewed, or shared with city staff. Do **not** speculate beyond the notes. If something is unclear, state "Not clearly discernible from the provided frame notes."
 
-Frame notes:
+**RAW FRAME NOTES (only source of truth):**
 {transcript}
 
-Write markdown with these sections:
+---
+
+Produce a **single markdown document** with **exactly** these section headings (use `##` for each):
+
 ## Record identification
+- State that the record is derived from sampled video frames analyzed by {vision_model}.
+- Note approximate coverage using the first and last timestamps in the notes (do not invent calendar dates).
+
 ## Executive summary
+- 4–8 dense sentences: what the footage broadly depicts, primary setting, main actors or objects, and the overall sequence of activity.
+
 ## Detailed chronological account
+- For **each** distinct time segment in the notes, provide a numbered or bulleted subsection with **timestamp** (HH:MM:SS or MM:SS) and a **paragraph** of factual description.
+- Merge only when two adjacent notes describe the same moment; otherwise keep temporal resolution.
+
 ## Persons, vehicles, objects, and environment
+- Sub-bullets listing what was described: people, clothing or posture if noted, vehicles, fixed objects, weather/lighting if mentioned, structures, signage if visible in text.
+
 ## Actions and sequence of events
+- Narrative paragraph(s) describing what happened in order, suitable for a supervisor or clerk.
+
 ## Uncertainties, occlusions, and limitations
+- Explicitly list what the frame notes do **not** establish (identity, intent, audio, off-camera events, exact counts if ambiguous).
+
 ## Administrative closing
+- One short paragraph: suitable for filing with municipal records; state that content is limited to visual descriptions from the vision system and not eyewitness testimony.
+
+Rules:
+- Do not invent names, license plates, addresses, or legal conclusions.
+- Quote or paraphrase the frame notes closely; prefer precision over creativity.
+- Minimum total length: aim for thorough coverage (typically several hundred words unless the notes are trivial).
 """
 
 
