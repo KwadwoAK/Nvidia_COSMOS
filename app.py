@@ -16,6 +16,8 @@ if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
 if 'username' not in st.session_state:
     st.session_state.username = None
+if 'theme_mode' not in st.session_state:
+    st.session_state.theme_mode = os.getenv("UI_THEME", "Night")
 
 def get_credentials():
     """Username -> password. From env (single user) or Streamlit secrets."""
@@ -30,6 +32,112 @@ def get_credentials():
         return {user: pwd}
     return {}
 
+def _login_required() -> bool:
+    """If True, show login form when credentials exist. Default False = open local app."""
+    return os.getenv("REQUIRE_LOGIN", "").lower() in ("1", "true", "yes")
+
+
+def _apply_login_bypass() -> None:
+    """Open app without password by default; set REQUIRE_LOGIN=1 to force LOGIN_* / secrets."""
+    if st.session_state.logged_in:
+        return
+    if not _login_required():
+        st.session_state.logged_in = True
+        st.session_state.username = os.getenv("OPEN_MODE_LABEL", "guest")
+        return
+    if os.getenv("DEV_SKIP_LOGIN", "").lower() in ("1", "true", "yes"):
+        st.session_state.logged_in = True
+        st.session_state.username = os.getenv("DEV_LOGIN_LABEL", "local-dev")
+        return
+    creds = get_credentials()
+    if not creds:
+        # REQUIRE_LOGIN=1 but no LOGIN_* / secrets: stay logged out; UI shows warning below
+        return
+    # REQUIRE_LOGIN=1 and credentials exist: show login form (stay logged out)
+
+
+def _apply_theme(theme_mode: str) -> None:
+    """Apply a simple Light/Night UI skin without requiring Streamlit config files."""
+    theme = (theme_mode or "Night").strip().lower()
+    if theme == "light":
+        colors = {
+            "background": "#f6f8fc",
+            "surface": "#ffffff",
+            "surface_alt": "#eef3fb",
+            "text": "#162033",
+            "muted": "#5b6474",
+            "border": "#d7dfed",
+            "accent": "#2563eb",
+            "accent_text": "#ffffff",
+        }
+    else:
+        colors = {
+            "background": "#0f172a",
+            "surface": "#111827",
+            "surface_alt": "#1f2937",
+            "text": "#e5eefb",
+            "muted": "#a7b4c8",
+            "border": "#334155",
+            "accent": "#60a5fa",
+            "accent_text": "#08111f",
+        }
+
+    st.markdown(
+        f"""
+        <style>
+        .stApp, [data-testid="stAppViewContainer"] {{
+            background: {colors["background"]};
+            color: {colors["text"]};
+        }}
+        [data-testid="stHeader"] {{
+            background: {colors["background"]};
+        }}
+        [data-testid="stSidebar"] {{
+            background: {colors["surface"]};
+            border-right: 1px solid {colors["border"]};
+        }}
+        [data-testid="stSidebar"] * {{
+            color: {colors["text"]};
+        }}
+        [data-testid="stAppViewContainer"] * {{
+            border-color: {colors["border"]};
+        }}
+        h1, h2, h3, h4, h5, h6, p, li, label, span, div {{
+            color: {colors["text"]};
+        }}
+        .stMarkdown, .stCaption {{
+            color: {colors["text"]};
+        }}
+        .stAlert {{
+            background: {colors["surface_alt"]};
+            color: {colors["text"]};
+            border: 1px solid {colors["border"]};
+        }}
+        .stExpander, .stTextInput > div > div, .stSelectbox > div > div,
+        .stNumberInput > div > div, .stSlider, .stFileUploader,
+        .stTextArea textarea {{
+            background: {colors["surface"]};
+            color: {colors["text"]};
+        }}
+        .stButton > button, .stDownloadButton > button {{
+            background: {colors["accent"]};
+            color: {colors["accent_text"]};
+            border: 1px solid {colors["accent"]};
+        }}
+        .stButton > button:hover, .stDownloadButton > button:hover {{
+            filter: brightness(1.05);
+        }}
+        code {{
+            color: {colors["text"]};
+            background: {colors["surface_alt"]};
+        }}
+        small, [data-testid="stCaptionContainer"] {{
+            color: {colors["muted"]};
+        }}
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
 # Page configuration
 st.set_page_config(
     page_title="Video Summarizer",
@@ -45,7 +153,20 @@ if 'summary' not in st.session_state:
 if 'frames' not in st.session_state:
     st.session_state.frames = None
 
+_apply_login_bypass()
+
 # Title and description
+st.sidebar.header("Appearance")
+theme_mode = st.sidebar.selectbox(
+    "Theme",
+    ["Night", "Light"],
+    index=0 if st.session_state.theme_mode == "Night" else 1,
+    help="Switch the UI between dark and light colors.",
+)
+st.session_state.theme_mode = theme_mode
+_apply_theme(theme_mode)
+st.sidebar.divider()
+
 st.title("🎥 Video Summarizer with Cosmos AI")
 st.markdown("Upload a video to get an AI-generated summary using Nvidia's Cosmos-reason2-8b model")
 
