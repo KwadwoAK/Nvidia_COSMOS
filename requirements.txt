@@ -9,3 +9,4 @@ python-dotenv
 sentence-transformers
 openai
 jinja2>=3.1.0
+pytest

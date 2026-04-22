@@ -675,7 +675,7 @@ with col1:
                         st.session_state.frames = frames
                         st.success(f"Frame extraction completed: {len(frames)} frames prepared for analysis.")
 
-                        st.info("Step 2 of 3: Interpreting the extracted frames with the vision-language model.")
+                        st.info("Step 2 of 3: Interpreting the extracted frames with the cosmos-reason2-8b model.")
                         model_handler = CosmosModelHandler()
                         frame_descriptions = model_handler.analyze_frames(frames)
                         st.success(f"Visual analysis completed: {len(frame_descriptions)} frame descriptions generated.")
