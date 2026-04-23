@@ -1,296 +1,177 @@
 # Video Summarizer with Nvidia Cosmos AI
 
-A Streamlit application that generates AI-powered summaries of video content using Nvidia's Cosmos-reason2-8b vision-language model.
+Streamlit app for authenticated video upload, frame-level analysis with `Cosmos-Reason2-8B`, summary generation with Gemma, optional Supabase Storage upload, and semantic retrieval over archived summaries.
 
-## Features
+## What It Does
 
-- 🎥 Upload and process video files (MP4, AVI, MOV, MKV)
-- 🤖 AI-powered frame analysis using Cosmos-reason2-8b
-- 📝 Generate summaries in multiple styles (Detailed, Concise, Bullet Points)
-- ⚙️ Configurable frame sampling and analysis parameters
-- 💾 Download summaries as text files
-- 🖼️ View sample frames from the analyzed video
+- Uploads video files (`mp4`, `avi`, `mov`, `mkv`) and extracts representative frames.
+- Runs visual analysis with Cosmos, then generates a structured summary with Gemma.
+- Stores summary metadata and embedding in PostgreSQL/pgvector.
+- Optionally uploads original videos to Supabase Storage and displays playable URLs in search results.
+- Provides two pages:
+  - `app.py`: upload + summarize + inline archive search
+  - `pages/2_Semantic_search.py`: dedicated semantic search view
 
 ## Visual Flow
 
-Video processing flow
+![Video processing and semantic retrieval flow](./diagrams/flow.png)
 
-## Installation
 
-### 1. Clone the repository
+
+## Current Project Structure
+
+```text
+Nvidia_COSMOS/
+├── app.py
+├── auth.py
+├── vision_search.py
+├── video_processor.py
+├── model_handler.py
+├── smoke_check_pipeline.py
+├── test_setup.py
+├── pages/
+│   └── 2_Semantic_search.py
+├── ui/
+│   ├── __init__.py
+│   ├── components.py
+│   ├── sidebar.py
+│   └── theme.py
+├── services/
+│   ├── __init__.py
+│   ├── archive_search.py
+│   └── pipeline.py
+├── state/
+│   ├── __init__.py
+│   └── session.py
+├── db/
+│   ├── connection.py
+│   ├── search_video.py
+│   ├── supabase_storage.py
+│   └── video_store.py
+├── embeddings/
+│   ├── __init__.py
+│   └── embedder.py
+├── summarys/
+│   ├── __init__.py
+│   ├── gemma_summarizer.py
+│   ├── ollama_summarizer.py
+│   └── summary_templates.py
+└── tests/
+    ├── test_gemma_summarizer.py
+    ├── test_summary_templates.py
+    ├── test_video_processor.py
+    ├── test_video_store.py
+    └── test_vision_search.py
+```
+
+## Architecture Notes
+
+- `app.py` is orchestration-focused; UI composition lives in `ui/`, workflows in `services/`, and session defaults in `state/`.
+- Shared login/logout behavior is in `auth.py`.
+- Shared light/dark theme is in `ui/theme.py` and is applied to both pages and the login UI.
+
+## Setup
+
+### 1) Clone and create environment
 
 ```bash
 git clone <repo-url>
 cd Nvidia_COSMOS
-```
-
-### 2. Create a virtual environment (recommended)
-
-```bash
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
-
-### 3. Install dependencies
-
-```bash
+source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### 4. Create required secret files (not included in repo)
+### 2) Configure environment variables
 
-These files are excluded from the repository via `.gitignore` and **must be created manually** after cloning.
+Create `.env` in the project root:
 
-#### `.env`
-
-Create a `.env` file in the project root:
-
-```
+```env
 SUPABASE_DB_URL=postgresql://<user>:<password>@<host>:5432/<dbname>?sslmode=require
 LOGIN_USERNAME=your_username
 LOGIN_PASSWORD=your_password
+
+# Optional storage upload support
+SUPABASE_URL=https://<project-ref>.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=<service-role-key>
+SUPABASE_VIDEO_BUCKET=videos
+
+# Optional model label override for stored metadata
+COSMOS_MODEL_LABEL=Cosmos-Reason2-8B
 ```
 
-- `SUPABASE_DB_URL` — your Supabase (or any PostgreSQL) connection string
-- `LOGIN_USERNAME` / `LOGIN_PASSWORD` — credentials for the app login screen
+### 3) Optional Streamlit secrets for multi-user login
 
-#### `.streamlit/secrets.toml`
-
-Create the `.streamlit/` directory and a `secrets.toml` file inside it:
-
-```bash
-mkdir .streamlit
-```
-
-Then create `.streamlit/secrets.toml` with the following content:
+Create `.streamlit/secrets.toml`:
 
 ```toml
 [passwords]
-your_username = "your_password"
+alice = "password1"
+bob = "password2"
 ```
 
-Add one line per user you want to allow. The username and password here must match what you set in `.env` (or you can use only one of the two approaches — both work).
+If `[passwords]` is set, login checks this mapping first.
 
-> **Note:** If VSCode shows these files greyed out, that is expected — they are gitignored to keep secrets out of version control. The files still work normally.
-
-### 5. Model Access
-
-Make sure you have access to Nvidia's Cosmos-reason2-8b model. You may need to:
-
-- Accept the model's terms on HuggingFace
-- Log in to HuggingFace: `huggingface-cli login`
-- Or download the model locally and update the model path in `model_handler.py`
-
-## Usage
-
-### Running the Application
+## Run the App
 
 ```bash
 streamlit run app.py
-python3 -m streamlit run app.py
 ```
 
-The application will open in your default web browser at `http://localhost:8501`
+Open `http://localhost:8501`.
 
-### Using the Application
+## Smoke Check
 
-1. **Configure Settings** (in sidebar):
-  - Adjust frame sampling interval (1-10 seconds)
-  - Set maximum frames to analyze (5-50)
-  - Choose summary style (Detailed/Concise/Bullet Points)
-2. **Upload Video**:
-  - Click "Browse files" or drag and drop
-  - Supported formats: MP4, AVI, MOV, MKV
-3. **Generate Summary**:
-  - Click "🚀 Generate Summary"
-  - Wait for processing (3 steps):
-    - Frame extraction
-    - AI analysis
-    - Summary generation
-4. **Review Results**:
-  - Read the generated summary
-  - Download summary as text file
-  - View sample frames from the video
-
-## Project Structure
-
-Tracked files only (see `.gitignore` for excluded paths like `.env`, `.idea/`, `venv/`).
-
-```
-Nvidia_COSMOS/
-├── app.py                  # Main page orchestration (Upload + summary + archive)
-├── auth.py                 # Login/session guard and sidebar user controls
-├── video_processor.py      # Frame extraction and video processing
-├── model_handler.py        # Cosmos model interface
-├── vision_search.py        # Build searchable text blob from summary + frame captions
-├── pages/
-│   └── 2_Semantic_search.py # Dedicated semantic search Streamlit page
-├── ui/
-│   ├── theme.py            # Shared light/dark theme CSS + cursor glow
-│   ├── components.py       # Reusable UI widgets (metric cards, formatters)
-│   ├── sidebar.py          # Sidebar rendering + settings config object
-│   └── __init__.py
-├── services/
-│   ├── pipeline.py         # Generate-summary workflow (extract/analyze/summarize/store)
-│   ├── archive_search.py   # Sidebar/archive query execution helpers
-│   └── __init__.py
-├── state/
-│   ├── session.py          # Centralized st.session_state initialization/defaults
-│   └── __init__.py
-├── summarys/               # Gemma summarizer + templates
-├── db/
-│   ├── connection.py       # PostgreSQL connection (SUPABASE_DB_URL)
-│   ├── video_store.py      # Insert video summaries with embeddings
-│   ├── search_video.py     # Similarity search over summaries
-│   └── supabase_storage.py # Optional video upload/public URL helpers
-├── embeddings/
-│   ├── embedder.py         # Text → 384-dim vector (sentence-transformers)
-│   └── __init__.py
-├── smoke_check_pipeline.py # Smoke checks for modular wiring + storage-compatible insert
-├── test_setup.py           # Verify setup (imports, GPU, video processor)
-├── requirements.txt
-├── README.md
-├── QUICKSTART.md
+```bash
+python smoke_check_pipeline.py
 ```
 
-## Database schema
+This validates:
 
-The app can store video summaries in PostgreSQL with the pgvector extension for similarity search.
+- modular app orchestration wiring
+- template metadata and search text behavior
+- DB insert compatibility across old/new schemas
 
-In Supabase, make sure the `vector` extension is enabled and you have a `video_summaries` table with an `embedding` column of dimension `384` (matches `all-MiniLM-L6-v2`).
+## Database Expectations
 
-- **Extension:** `CREATE EXTENSION IF NOT EXISTS vector;`
-- **Table:** `video_summaries`
+Requires PostgreSQL with `pgvector` enabled and table `video_summaries`.
 
+Core columns:
 
-| Column          | Type          | Description                                        |
-| --------------- | ------------- | -------------------------------------------------- |
-| `id`            | BIGSERIAL     | Primary key                                        |
-| `created_at`    | TIMESTAMPTZ   | Default NOW()                                      |
-| `filename`      | TEXT          | Original video filename (optional)                 |
-| `duration_sec`  | NUMERIC(10,2) | Video duration in seconds (optional)               |
-| `summary_style` | TEXT          | e.g. "detailed", "concise"                         |
-| `summary_text`  | TEXT NOT NULL | Full summary text                                  |
-| `embedding`     | vector(384)   | Embedding for similarity search (all-MiniLM-L6-v2) |
+- `id`, `filename`, `duration_sec`, `summary_style`, `summary_text`, `embedding`
 
+Extended columns used when available:
 
-Optional index for faster search once you have many rows:
+- `summary_engine`, `vision_model`, `template_id`, `search_text`, `storage_object_path`
 
-```sql
-CREATE INDEX ON video_summaries
-USING ivfflat (embedding vector_cosine_ops)
-WITH (lists = 100);
-```
+## Main User Flow
 
-## Configuration
-
-### Frame Extraction Methods
-
-The `VideoProcessor` class provides two methods:
-
-1. **Interval-based extraction** (default):
-  - Extracts frames at regular time intervals
-  - Good for consistent sampling
-2. **Keyframe extraction**:
-  - Detects scene changes
-  - More intelligent sampling
-  - To use, modify `app.py` to call `extract_keyframes()` instead of `extract_frames()`
-
-### Model Configuration
-
-In `model_handler.py`, you can adjust:
-
-- `model_name`: HuggingFace model ID or local path
-- `max_new_tokens`: Maximum length of generated descriptions
-- `temperature`: Creativity of responses (0.0-1.0)
-- `batch_size`: Number of frames to process together
-
-## Customization
-
-### Summary Styles
-
-You can adjust summary prompts in `summarys/summary_templates.py` (summary user prompts) and `summarys/gemma_summarizer.py`.
-
-### Prompts
-
-Customize the prompts sent to the Cosmos model in `model_handler.py`:
-
-- Edit the `prompt` parameter in `analyze_single_frame()`
-- Modify context-aware prompts in `analyze_with_context()`
+1. Log in.
+2. Select theme and analysis settings in sidebar.
+3. Upload video and click **Generate Summary**.
+4. Pipeline runs:
+  - frame extraction
+  - Cosmos frame analysis
+  - Gemma summary generation
+  - optional Storage upload
+  - summary + embedding insert into DB
+5. Review summary, download text, preview sample frames.
+6. Search archived summaries from sidebar or Semantic Search page.
 
 ## Troubleshooting
 
-### Common Issues
-
-**Login fails / "no credentials found"**
-
-- Ensure `.env` exists in the project root with `LOGIN_USERNAME` and `LOGIN_PASSWORD` set
-- Or ensure `.streamlit/secrets.toml` exists with a `[passwords]` section
-- Verify you are running `streamlit run app.py` from the project root — Streamlit looks for `.streamlit/secrets.toml` relative to the working directory
-- On Windows, check the file was saved correctly: `Test-Path ".streamlit\secrets.toml"` should return `True`
-
-**"Missing SUPABASE_DB_URL"**
-
-- Ensure `.env` exists and contains `SUPABASE_DB_URL=...`
-- The `python-dotenv` package must be installed (`pip install -r requirements.txt`)
-
-**"Could not open video file"**
-
-- Ensure the video file is not corrupted
-- Check that the format is supported
-- Try converting to MP4 if issues persist
-
-**"CUDA out of memory"**
-
-- Reduce `max_frames` in the sidebar
-- Increase `frame_interval` to sample fewer frames
-- Use CPU instead (slower but works without GPU)
-
-**"Model not found"**
-
-- Verify you have access to the Cosmos model
-- Check your HuggingFace authentication
-- Ensure the model name in `model_handler.py` is correct
-
-**Slow processing**
-
-- Enable GPU acceleration
-- Reduce number of frames analyzed
-- Use interval-based extraction instead of keyframe detection
-
-## Performance Tips
-
-1. **Start small**: Test with short videos first (30-60 seconds)
-2. **Balance quality vs speed**: Fewer frames = faster processing
-3. **GPU recommended**: CPU processing works but is significantly slower
-4. **Resize frames**: Smaller frames process faster (default is 512px width)
-
-## Future Enhancements
-
-Potential improvements:
-
-- Batch processing for multiple frames
-- Support for live video streams
-- Audio transcription integration
-- Multi-language support
-- Export summaries in multiple formats (PDF, Markdown)
-- Fine-tuning prompts based on video category
-
-## License
-
-This project is provided as-is for educational and research purposes.
+- Login fails:
+  - set `LOGIN_USERNAME` / `LOGIN_PASSWORD`, or use `.streamlit/secrets.toml`.
+- Search/storage errors:
+  - verify `SUPABASE_DB_URL` and `pgvector` setup.
+- Video URL not playable:
+  - ensure `SUPABASE_URL` is set and `storage_object_path` exists for that row.
+- Slow or OOM processing:
+  - reduce max frames or increase frame interval.
 
 ## Acknowledgments
 
-- Nvidia for the Cosmos-reason2-8b model
-- Streamlit for the web framework
-- HuggingFace Transformers library
-
-## Support
-
-For issues or questions:
-
-1. Check the troubleshooting section above
-2. Review the Cosmos model documentation
-3. Check Streamlit documentation at [https://docs.streamlit.io](https://docs.streamlit.io)
+- Nvidia Cosmos model family
+- Streamlit
+- Hugging Face ecosystem
 
