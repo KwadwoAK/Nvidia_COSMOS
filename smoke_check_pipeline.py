@@ -38,27 +38,40 @@ def check_app_routing() -> None:
     app_path = ROOT / "app.py"
     text = app_path.read_text(encoding="utf-8")
 
-    if "from summarys.gemma_summarizer import summarize_frames_with_gemma" not in text:
-        fail("app.py is not importing summarize_frames_with_gemma")
-    if "summarize_frames_with_gemma(" not in text:
-        fail("app.py is not calling summarize_frames_with_gemma")
-    if "style_key_from_label(summary_style)" not in text:
-        fail("app.py is not normalizing style label via style_key_from_label")
-    if "build_search_text(summary, frame_descriptions)" not in text:
-        fail("app.py is not building search_text for embedding/storage")
-    if 'summary_engine="gemma4"' not in text:
-        fail("app.py is not marking stored summaries as gemma4 engine")
-    if "upload_local_file_to_video_bucket" not in text:
-        fail("app.py is not uploading videos to Supabase Storage when configured")
-    if "storage_object_path=storage_object_path" not in text:
-        fail("app.py is not passing storage_object_path into insert_summary")
+    if "from services.pipeline import run_generate_summary_workflow" not in text:
+        fail("app.py is not routing generation through services.pipeline")
+    if "from services.archive_search import run_archive_search" not in text:
+        fail("app.py is not routing archive search through services.archive_search")
+    if "from state.session import init_session_state" not in text:
+        fail("app.py is not using centralized session state initialization")
+    if "from ui.sidebar import render_sidebar" not in text:
+        fail("app.py is not using ui.sidebar rendering")
+    if "from ui.theme import apply_theme" not in text:
+        fail("app.py is not applying theme through ui.theme")
+
+    pipeline_path = ROOT / "services" / "pipeline.py"
+    if not pipeline_path.is_file():
+        fail("missing services/pipeline.py")
+    pipeline_text = pipeline_path.read_text(encoding="utf-8")
+    if "summarize_frames_with_gemma(" not in pipeline_text:
+        fail("services/pipeline.py is not calling summarize_frames_with_gemma")
+    if "style_key_from_label(summary_style)" not in pipeline_text:
+        fail("services/pipeline.py is not normalizing style label via style_key_from_label")
+    if "build_search_text(summary, frame_descriptions)" not in pipeline_text:
+        fail("services/pipeline.py is not building search_text for embedding/storage")
+    if 'summary_engine="gemma4"' not in pipeline_text:
+        fail("services/pipeline.py is not marking stored summaries as gemma4 engine")
+    if "upload_local_file_to_video_bucket" not in pipeline_text:
+        fail("services/pipeline.py is not uploading videos to Supabase Storage when configured")
+    if "storage_object_path=storage_object_path" not in pipeline_text:
+        fail("services/pipeline.py is not passing storage_object_path into insert_summary")
     page = ROOT / "pages" / "2_Semantic_search.py"
     if not page.is_file():
         fail("missing pages/2_Semantic_search.py")
     ptext = page.read_text(encoding="utf-8")
     if "search_similar_by_text" not in ptext:
         fail("semantic search page is not calling search_similar_by_text")
-    ok("app.py uses Gemma summarizer + template-aware storage inputs")
+    ok("app.py delegates orchestration and pipeline keeps Gemma/template-aware storage behavior")
 
 
 def check_templates_and_search_text() -> None:

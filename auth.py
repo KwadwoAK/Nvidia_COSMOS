@@ -60,7 +60,7 @@ def render_user_sidebar() -> None:
     """Caption + logout when logged in."""
     if st.session_state.get("logged_in"):
         st.sidebar.caption(f"Logged in as **{st.session_state.username}**")
-        if st.sidebar.button("Log out"):
+        if st.sidebar.button("Log out", key="auth_logout_button"):
             st.session_state.logged_in = False
             st.session_state.username = None
             st.rerun()
