@@ -118,18 +118,36 @@ Tracked files only (see `.gitignore` for excluded paths like `.env`, `.idea/`, `
 
 ```
 Nvidia_COSMOS/
-├── app.py                  # Main Streamlit application
+├── app.py                  # Main page orchestration (Upload + summary + archive)
+├── auth.py                 # Login/session guard and sidebar user controls
 ├── video_processor.py      # Frame extraction and video processing
 ├── model_handler.py        # Cosmos model interface
+├── vision_search.py        # Build searchable text blob from summary + frame captions
+├── pages/
+│   └── 2_Semantic_search.py # Dedicated semantic search Streamlit page
+├── ui/
+│   ├── theme.py            # Shared light/dark theme CSS + cursor glow
+│   ├── components.py       # Reusable UI widgets (metric cards, formatters)
+│   ├── sidebar.py          # Sidebar rendering + settings config object
+│   └── __init__.py
+├── services/
+│   ├── pipeline.py         # Generate-summary workflow (extract/analyze/summarize/store)
+│   ├── archive_search.py   # Sidebar/archive query execution helpers
+│   └── __init__.py
+├── state/
+│   ├── session.py          # Centralized st.session_state initialization/defaults
+│   └── __init__.py
 ├── summarys/               # Gemma summarizer + templates
-├── test_setup.py           # Verify setup (imports, GPU, video processor)
 ├── db/
 │   ├── connection.py       # PostgreSQL connection (SUPABASE_DB_URL)
 │   ├── video_store.py      # Insert video summaries with embeddings
-│   └── search_video.py     # Similarity search over summaries
+│   ├── search_video.py     # Similarity search over summaries
+│   └── supabase_storage.py # Optional video upload/public URL helpers
 ├── embeddings/
 │   ├── embedder.py         # Text → 384-dim vector (sentence-transformers)
-│   └── init.py
+│   └── __init__.py
+├── smoke_check_pipeline.py # Smoke checks for modular wiring + storage-compatible insert
+├── test_setup.py           # Verify setup (imports, GPU, video processor)
 ├── requirements.txt
 ├── README.md
 ├── QUICKSTART.md
