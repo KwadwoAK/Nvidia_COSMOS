@@ -17,7 +17,7 @@ from model_handler import CosmosModelHandler
 from summarys.gemma_summarizer import summarize_frames_with_gemma
 from summarys.summary_templates import (
     DEFAULT_VISION_MODEL_LABEL,
-    parse_template_id_from_summary,
+    TEMPLATE_ID,
     style_key_from_label,
 )
 from video_processor import VideoProcessor
@@ -105,7 +105,7 @@ def run_generate_summary_workflow(
                 embedding=embedding,
                 summary_engine="gemma4",
                 vision_model=os.getenv("COSMOS_MODEL_LABEL", DEFAULT_VISION_MODEL_LABEL),
-                template_id=parse_template_id_from_summary(summary),
+                template_id=TEMPLATE_ID,
                 search_text=search_text,
                 storage_object_path=storage_object_path,
             )

@@ -25,7 +25,7 @@ class _FakeOpenAI:
         )
 
 
-def test_summarize_frames_with_gemma_returns_body_with_metadata(monkeypatch):
+def test_summarize_frames_with_gemma_returns_model_body_only(monkeypatch):
     fake_client = _FakeOpenAI(base_url="http://unused", api_key="unused")
     monkeypatch.setattr(gemma_summarizer, "OpenAI", lambda **kwargs: fake_client)
     monkeypatch.setenv("SUMMARY_MAX_TOKENS", "123")
@@ -40,9 +40,7 @@ def test_summarize_frames_with_gemma_returns_body_with_metadata(monkeypatch):
         vision_model="Cosmos-Reason2-8B",
     )
 
-    assert "summary_template:cosmos_summary_v1" in result
-    assert "engine:gemma4" in result
-    assert "A concise generated summary." in result
+    assert result == "A concise generated summary."
     assert fake_client.request_args is not None
     assert fake_client.request_args["model"] == "gemma-4-26B-MoE"
     assert fake_client.request_args["max_tokens"] == 123
@@ -67,5 +65,4 @@ def test_summarize_frames_with_gemma_handles_empty_transcript_without_api_call(m
         timestamps=[],
     )
 
-    assert "_No content to summarize._" in result
-    assert "engine:gemma4" in result
+    assert result == "_No content to summarize._"

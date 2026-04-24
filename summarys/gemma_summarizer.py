@@ -11,7 +11,6 @@ from openai import OpenAI
 from summarys.summary_templates import (
     DEFAULT_VISION_MODEL_LABEL,
     gemma_user_prompt,
-    metadata_line,
 )
 
 
@@ -37,7 +36,7 @@ def summarize_frames_with_gemma(
         lines.append(f"[{ts:.2f}s] {desc}")
     transcript = "\n".join(lines).strip()
     if not transcript:
-        return metadata_line(style, "gemma4", vision) + "\n\n_No content to summarize._"
+        return "_No content to summarize._"
 
     user_prompt = gemma_user_prompt(transcript, style, vision_model=vision)
     response = client.chat.completions.create(
@@ -47,6 +46,6 @@ def summarize_frames_with_gemma(
     )
     body = (response.choices[0].message.content or "").strip() if response.choices else ""
     if not body:
-        return metadata_line(style, "gemma4", vision) + "\n\n_Gemma returned an empty response._"
+        return "_Gemma returned an empty response._"
 
-    return f"{metadata_line(style, 'gemma4', vision)}\n\n{body}"
+    return body
