@@ -90,24 +90,8 @@ def gemma_user_prompt(
     style: str,
     vision_model: str = DEFAULT_VISION_MODEL_LABEL,
 ) -> str:
-    style_key = (style or "formal").lower().strip().replace(" ", "_")
-    if style_key == "municipal_report":
-        return _gemma_municipal_report_prompt(transcript, vision_model)
-
-    return f"""You turn timestamped frame descriptions into a structured video summary.
-
-Vision captions came from {vision_model}. Use ONLY information supported by the frame notes below.
-
-Frame notes:
-{transcript}
-
-Output MUST use this markdown shape:
-## Overview
-## Chronological highlights
-## Takeaways
-
-Keep wording concise and factual. No speculation.
-"""
+    # Always use the detailed long-form prompt so output remains thorough.
+    return _gemma_municipal_report_prompt(transcript, vision_model)
 
 
 def extract_keywords_from_frames(frame_descriptions: List[Dict[str, str]]) -> List[str]:
