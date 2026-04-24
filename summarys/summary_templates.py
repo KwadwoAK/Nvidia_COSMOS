@@ -42,7 +42,7 @@ def metadata_line(
     )
 
 
-def _ollama_municipal_report_prompt(transcript: str, vision_model: str) -> str:
+def _gemma_municipal_report_prompt(transcript: str, vision_model: str) -> str:
     """Long-form English narrative suitable for municipal records / incident-style documentation."""
     return f"""You are drafting an official **field observation record** for municipal or public-safety use, based solely on timestamped visual descriptions from an automated vision system ({vision_model}).
 
@@ -85,14 +85,14 @@ Rules:
 """
 
 
-def ollama_user_prompt(
+def gemma_user_prompt(
     transcript: str,
     style: str,
     vision_model: str = DEFAULT_VISION_MODEL_LABEL,
 ) -> str:
     style_key = (style or "formal").lower().strip().replace(" ", "_")
     if style_key == "municipal_report":
-        return _ollama_municipal_report_prompt(transcript, vision_model)
+        return _gemma_municipal_report_prompt(transcript, vision_model)
 
     return f"""You turn timestamped frame descriptions into a structured video summary.
 

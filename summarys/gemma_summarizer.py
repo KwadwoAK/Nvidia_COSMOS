@@ -10,8 +10,8 @@ from openai import OpenAI
 
 from summarys.summary_templates import (
     DEFAULT_VISION_MODEL_LABEL,
+    gemma_user_prompt,
     metadata_line,
-    ollama_user_prompt,
 )
 
 
@@ -39,7 +39,7 @@ def summarize_frames_with_gemma(
     if not transcript:
         return metadata_line(style, "gemma4", vision) + "\n\n_No content to summarize._"
 
-    user_prompt = ollama_user_prompt(transcript, style, vision_model=vision)
+    user_prompt = gemma_user_prompt(transcript, style, vision_model=vision)
     response = client.chat.completions.create(
         model=resolved_model,
         messages=[{"role": "user", "content": user_prompt}],
